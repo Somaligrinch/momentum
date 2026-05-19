@@ -223,6 +223,19 @@ input:focus-visible,
   background: var(--surface-soft);
 }
 
+.button-text {
+  min-height: 34px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
 .button-small {
   min-height: 36px;
   padding: 0 14px;
@@ -618,7 +631,9 @@ h2 {
 
 .streak-list,
 .timeline-list,
-.insight-list {
+.insight-list,
+.task-list,
+.action-stack {
   display: grid;
   gap: 12px;
   margin-top: 20px;
@@ -626,13 +641,51 @@ h2 {
 
 .habit-row {
   display: grid;
-  grid-template-columns: 1fr 96px;
+  grid-template-columns: auto 1fr 96px;
   gap: 14px;
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 14px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent);
+}
+
+.habit-row.is-done {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
+}
+
+.habit-toggle,
+.task-check {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  background: var(--surface-soft);
+}
+
+.habit-row.is-done .habit-toggle,
+.task-card.is-done .task-check {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+}
+
+.habit-toggle::before,
+.task-check span::before {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg);
+  opacity: 0;
+}
+
+.habit-row.is-done .habit-toggle::before,
+.task-card.is-done .task-check span::before {
+  opacity: 1;
 }
 
 .habit-row span {
@@ -664,6 +717,47 @@ h2 {
   border-radius: 20px;
   padding: 16px;
   background: var(--surface-soft);
+}
+
+.task-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  background: var(--surface-soft);
+  transition: transform 160ms var(--ease), border-color 160ms var(--ease), background 160ms var(--ease);
+}
+
+.task-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.task-card.is-done {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12), var(--surface-soft));
+}
+
+.task-card h3 {
+  margin: 0;
+}
+
+.task-card p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+}
+
+.task-card > strong {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.quick-task-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
 }
 
 .timeline-card.is-current {
@@ -760,7 +854,8 @@ input {
 .segment,
 .horizon-tab,
 .category-card,
-.path-node {
+.path-node,
+.check-button {
   border: 0;
   cursor: pointer;
   color: var(--text-muted);
@@ -899,6 +994,21 @@ input {
 
 .milestone-card {
   padding: 22px;
+}
+
+.check-button {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: var(--surface-soft);
+  font-weight: 750;
+}
+
+.check-button.is-done {
+  color: white;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--green), var(--cyan));
 }
 
 .chart-card {

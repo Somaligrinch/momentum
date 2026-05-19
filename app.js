@@ -1,4 +1,5 @@
 const STORAGE_GOAL = "momentum.goal";
+const STORAGE_APP = "momentum.workspace";
 const STORAGE_THEME = "momentum.theme";
 
 const demoGoal = {
@@ -20,10 +21,41 @@ const dashboardMetrics = {
   tasksCompleted: 23,
 };
 
+const demoTasks = [
+  { id: "task_1", title: "Define the final portfolio story", done: true, weight: 18 },
+  { id: "task_2", title: "Write two polished case studies", done: true, weight: 22 },
+  { id: "task_3", title: "Design the homepage and project grid", done: true, weight: 18 },
+  { id: "task_4", title: "Publish first public version", done: false, weight: 24 },
+  { id: "task_5", title: "Ask three people for feedback", done: false, weight: 10 },
+  { id: "task_6", title: "Record a short walkthrough", done: false, weight: 8 },
+];
+
+const demoMilestones = [
+  { id: "m1", horizon: "30 days", title: "12 focused sessions", done: true },
+  { id: "m2", horizon: "30 days", title: "First public draft", done: false },
+  { id: "m3", horizon: "30 days", title: "Weekly review rhythm", done: true },
+  { id: "m4", horizon: "90 days", title: "Portfolio polished", done: false },
+  { id: "m5", horizon: "90 days", title: "Case studies complete", done: false },
+  { id: "m6", horizon: "90 days", title: "Feedback loop active", done: true },
+  { id: "m7", horizon: "1 year", title: "Major goal achieved", done: false },
+  { id: "m8", horizon: "1 year", title: "Stronger creative identity", done: false },
+  { id: "m9", horizon: "1 year", title: "Repeatable system built", done: true },
+];
+
+const demoSessions = [
+  { day: "Mon", minutes: 45, completed: 2 },
+  { day: "Tue", minutes: 70, completed: 3 },
+  { day: "Wed", minutes: 80, completed: 4 },
+  { day: "Thu", minutes: 55, completed: 2 },
+  { day: "Fri", minutes: 90, completed: 4 },
+  { day: "Sat", minutes: 35, completed: 1 },
+  { day: "Sun", minutes: 65, completed: 3 },
+];
+
 const habitStreaks = [
-  { id: "h1", title: "Morning focus", streak: 9, completion: 82, color: "#8B5CF6" },
-  { id: "h2", title: "Deep work", streak: 5, completion: 74, color: "#22D3EE" },
-  { id: "h3", title: "Evening review", streak: 12, completion: 91, color: "#34D399" },
+  { id: "h1", title: "Morning focus", streak: 9, completion: 82, color: "#8B5CF6", doneToday: true },
+  { id: "h2", title: "Deep work", streak: 5, completion: 74, color: "#22D3EE", doneToday: false },
+  { id: "h3", title: "Evening review", streak: 12, completion: 91, color: "#34D399", doneToday: true },
 ];
 
 const weeklyOverview = [
@@ -126,9 +158,12 @@ const routeTitles = {
   "/insights": "Insights",
 };
 
+const initialWorkspace = loadAppData();
+
 let state = {
   route: getRoute(),
-  goal: loadGoal(),
+  goal: initialWorkspace.goal,
+  app: initialWorkspace,
   theme: localStorage.getItem(STORAGE_THEME) || "dark",
   selectedHorizon: "30 days",
   setupDraft: null,
@@ -159,9 +194,97 @@ function loadGoal() {
   }
 }
 
+function loadAppData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_APP);
+    if (saved) return normalizeAppData(JSON.parse(saved));
+  } catch {
+    // Fall through to a healthy demo workspace.
+  }
+
+  return normalizeAppData({
+    goal: loadGoal(),
+    tasks: demoTasks,
+    habits: habitStreaks,
+    sessions: demoSessions,
+    milestones: demoMilestones,
+    lastUpdated: new Date().toISOString(),
+  });
+}
+
+function normalizeAppData(data) {
+  const goal = { ...demoGoal, ...(data.goal || {}) };
+  const tasks = Array.isArray(data.tasks) && data.tasks.length ? data.tasks : demoTasks;
+  const habits = Array.isArray(data.habits) && data.habits.length ? data.habits : habitStreaks;
+  const sessions = Array.isArray(data.sessions) && data.sessions.length ? data.sessions : demoSessions;
+  const milestones = Array.isArray(data.milestones) && data.milestones.length ? data.milestones : demoMilestones;
+  return { goal, tasks, habits, sessions, milestones, lastUpdated: data.lastUpdated || new Date().toISOString() };
+}
+
+function saveAppData(nextApp) {
+  state.app = normalizeAppData({ ...nextApp, lastUpdated: new Date().toISOString() });
+  state.goal = state.app.goal;
+  localStorage.setItem(STORAGE_APP, JSON.stringify(state.app));
+  localStorage.setItem(STORAGE_GOAL, JSON.stringify(state.goal));
+}
+
 function saveGoal(goal) {
-  localStorage.setItem(STORAGE_GOAL, JSON.stringify(goal));
-  state.goal = goal;
+  const workspace = createWorkspaceForGoal(goal);
+  saveAppData(workspace);
+}
+
+function createWorkspaceForGoal(goal) {
+  const cleanedGoal = { ...demoGoal, ...goal, progress: 0, createdAt: new Date().toISOString().slice(0, 10) };
+  return {
+    goal: cleanedGoal,
+    tasks: [
+      { id: cryptoId("task"), title: `Define what "${cleanedGoal.title}" means when complete`, done: false, weight: 18 },
+      { id: cryptoId("task"), title: "Create the first visible version", done: false, weight: 24 },
+      { id: cryptoId("task"), title: "Schedule three focused work sessions", done: false, weight: 16 },
+      { id: cryptoId("task"), title: "Review progress and remove one blocker", done: false, weight: 18 },
+      { id: cryptoId("task"), title: "Share progress with someone for feedback", done: false, weight: 14 },
+      { id: cryptoId("task"), title: "Package the final result", done: false, weight: 10 },
+    ],
+    habits: habitStreaks.map((habit) => ({ ...habit, doneToday: false, streak: Math.max(1, habit.streak - 4) })),
+    sessions: demoSessions.map((session, index) => index === 6 ? { ...session, minutes: 0, completed: 0 } : session),
+    milestones: demoMilestones.map((milestone) => ({ ...milestone, done: false })),
+  };
+}
+
+function cryptoId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function getDerived(app = state.app) {
+  const totalWeight = app.tasks.reduce((sum, task) => sum + Number(task.weight || 1), 0) || 1;
+  const completedWeight = app.tasks.filter((task) => task.done).reduce((sum, task) => sum + Number(task.weight || 1), 0);
+  const progress = Math.round((completedWeight / totalWeight) * 100);
+  const completedTasks = app.tasks.filter((task) => task.done).length;
+  const habitCompletion = Math.round((app.habits.filter((habit) => habit.doneToday).length / Math.max(1, app.habits.length)) * 100);
+  const activeStreak = Math.max(...app.habits.map((habit) => habit.streak), 0);
+  const focusHours = app.sessions.reduce((sum, session) => sum + session.minutes, 0) / 60;
+  const weeklyProgress = Math.round(app.sessions.reduce((sum, session) => sum + Math.min(100, session.minutes), 0) / Math.max(1, app.sessions.length));
+  const milestoneRate = Math.round((app.milestones.filter((milestone) => milestone.done).length / Math.max(1, app.milestones.length)) * 100);
+  const productivityScore = clamp(Math.round(progress * 0.46 + habitCompletion * 0.24 + weeklyProgress * 0.18 + milestoneRate * 0.12), 0, 100);
+  const nextTask = app.tasks.find((task) => !task.done);
+  const nextMilestone = app.milestones.find((milestone) => !milestone.done);
+  return {
+    progress,
+    completedTasks,
+    totalTasks: app.tasks.length,
+    habitCompletion,
+    activeStreak,
+    focusHours,
+    weeklyProgress,
+    milestoneRate,
+    productivityScore,
+    nextTask,
+    nextMilestone,
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function getRoute() {
@@ -304,6 +427,7 @@ function renderLanding() {
 }
 
 function renderPreviewCard() {
+  const derived = getDerived();
   return `
     <article class="glass-card preview-card">
       <div class="preview-top">
@@ -314,17 +438,17 @@ function renderPreviewCard() {
         <span class="status-pill">On track</span>
       </div>
       <div class="preview-body">
-        ${progressRing(68, "Goal progress", "large")}
+        ${progressRing(derived.progress, "Goal progress", "large")}
         <div class="preview-metrics">
-          <div><strong>84</strong><span>Score</span></div>
-          <div><strong>12</strong><span>Streak</span></div>
-          <div><strong>21d</strong><span>Next milestone</span></div>
+          <div><strong>${derived.productivityScore}</strong><span>Score</span></div>
+          <div><strong>${derived.activeStreak}</strong><span>Streak</span></div>
+          <div><strong>${derived.completedTasks}/${derived.totalTasks}</strong><span>Tasks</span></div>
         </div>
       </div>
       <div class="mini-horizons">
         <span>30d</span><span>90d</span><span>1y</span>
       </div>
-      ${weeklyBars(weeklyOverview)}
+      ${weeklyBars(getWeeklyBars())}
     </article>
   `;
 }
@@ -387,62 +511,79 @@ function renderSetupPage() {
 
 function renderDashboardPage() {
   const goal = state.goal;
+  const derived = getDerived();
+  const weekly = getWeeklyBars();
+  const trend = getMomentumTrend();
   return `
     <section class="page-hero">
       <div>
         <p class="eyebrow">Dashboard</p>
         <h1>${escapeHtml(goal.title)}</h1>
-        <p>${goal.category} goal due ${formatDate(goal.targetDate)}. The roadmap is active and moving.</p>
+        <p>${goal.category} goal due ${formatDate(goal.targetDate)}. Complete tasks, log focus, and check habits to move the numbers.</p>
       </div>
       <button class="button button-ghost nav-link" data-route="/setup">Edit goal</button>
     </section>
     <section class="dashboard-grid">
       <article class="glass-card progress-card span-5">
         <div class="card-head">
-          <div><p class="eyebrow">Main progress</p><h2>${goal.progress}% complete</h2></div>
+          <div><p class="eyebrow">Main progress</p><h2>${derived.progress}% complete</h2></div>
           <span class="status-pill">${goal.priority} priority</span>
         </div>
         <div class="progress-layout">
-          ${progressRing(goal.progress, "Goal completion", "large")}
+          ${progressRing(derived.progress, "Goal completion", "large")}
           <div class="progress-copy">
-            <p>Your visible path is ahead of pace. Keep the current rhythm for another three weeks to reach the next milestone early.</p>
+            <p>${derived.nextTask ? `Next up: ${escapeHtml(derived.nextTask.title)}.` : "Every roadmap task is complete. You can reset the demo or keep logging focus."}</p>
             <div class="mini-stat-row">
-              ${miniStat("23", "Tasks done")}
-              ${miniStat("21d", "Next milestone")}
+              ${miniStat(`${derived.completedTasks}/${derived.totalTasks}`, "Tasks done")}
+              ${miniStat(`${daysUntil(goal.targetDate)}d`, "Days left")}
             </div>
           </div>
         </div>
       </article>
       <article class="glass-card score-card span-3">
         <p class="eyebrow">Productivity score</p>
-        <strong class="metric count-up" data-count="${dashboardMetrics.productivityScore}">84</strong>
-        <div class="sparkline" aria-hidden="true">${sparkline(momentumTrend.map((i) => i.score))}</div>
-        <p class="muted">Up 18% over the last month.</p>
+        <strong class="metric count-up" data-count="${derived.productivityScore}">${derived.productivityScore}</strong>
+        <div class="sparkline" aria-hidden="true">${sparkline(trend.map((i) => i.score))}</div>
+        <p class="muted">${scoreNarrative(derived.productivityScore)}</p>
       </article>
       <article class="glass-card streak-card span-4">
-        <div class="card-head"><div><p class="eyebrow">Habit streaks</p><h2>${dashboardMetrics.activeStreak} day rhythm</h2></div></div>
+        <div class="card-head"><div><p class="eyebrow">Habit streaks</p><h2>${derived.activeStreak} day rhythm</h2></div></div>
         <div class="streak-list">
-          ${habitStreaks.map((habit) => habitRow(habit)).join("")}
+          ${state.app.habits.map((habit) => habitRow(habit)).join("")}
+        </div>
+      </article>
+      <article class="glass-card action-card span-5">
+        <div class="card-head">
+          <div><p class="eyebrow">Today</p><h2>Make momentum move</h2></div>
+        </div>
+        <div class="action-stack">
+          <button class="button button-primary" data-add-session>Log 25 minute focus session</button>
+          <button class="button button-ghost" data-complete-next ${derived.nextTask ? "" : "disabled"}>${derived.nextTask ? "Complete next roadmap task" : "All roadmap tasks complete"}</button>
+          <form class="quick-task-form" id="quick-task-form">
+            <input name="task" type="text" placeholder="Add a new roadmap task" aria-label="New roadmap task" />
+            <button class="button button-ghost" type="submit">Add</button>
+          </form>
+          <button class="button button-text" data-reset-demo>Reset demo data</button>
         </div>
       </article>
       <article class="glass-card span-7">
         <div class="card-head"><div><p class="eyebrow">Timeline</p><h2>Momentum roadmap</h2></div></div>
-        <div class="timeline-list">
-          ${timelineCards.map((card) => timelineCard(card)).join("")}
+        <div class="task-list">
+          ${state.app.tasks.map((task) => taskCard(task)).join("")}
         </div>
       </article>
       <article class="glass-card span-5">
-        <div class="card-head"><div><p class="eyebrow">Weekly overview</p><h2>${dashboardMetrics.weeklyProgress}% this week</h2></div></div>
-        ${weeklyBars(weeklyOverview)}
+        <div class="card-head"><div><p class="eyebrow">Weekly overview</p><h2>${derived.weeklyProgress}% this week</h2></div></div>
+        ${weeklyBars(weekly)}
         <div class="mini-stat-row">
-          ${miniStat(`${dashboardMetrics.focusHours}h`, "Focus time")}
-          ${miniStat(`${dashboardMetrics.tasksCompleted}`, "Tasks completed")}
+          ${miniStat(`${derived.focusHours.toFixed(1)}h`, "Focus time")}
+          ${miniStat(`${state.app.sessions.reduce((sum, session) => sum + session.completed, 0)}`, "Sessions")}
         </div>
       </article>
       <article class="glass-card span-12 momentum-notes">
         <div>
-          <p class="eyebrow">Presentation note</p>
-          <h2>The app feels alive because every number has visual context.</h2>
+          <p class="eyebrow">Live local workspace</p>
+          <h2>Every chart and projection now responds to your actions.</h2>
         </div>
         <button class="button button-primary nav-link" data-route="/future">See future vision</button>
       </article>
@@ -451,7 +592,9 @@ function renderDashboardPage() {
 }
 
 function renderFuturePage() {
-  const selected = futureVision.find((item) => item.horizon === state.selectedHorizon) || futureVision[0];
+  const derived = getDerived();
+  const projections = getFutureVision();
+  const selected = projections.find((item) => item.horizon === state.selectedHorizon) || projections[0];
   return `
     <section class="page-hero future-hero">
       <div>
@@ -460,7 +603,7 @@ function renderFuturePage() {
         <p>Projection cards make consistency feel tangible across 30 days, 90 days, and one year.</p>
       </div>
       <div class="horizon-tabs">
-        ${futureVision.map((item) => `
+        ${projections.map((item) => `
           <button class="horizon-tab ${item.horizon === selected.horizon ? "is-selected" : ""}" data-horizon="${item.horizon}">${item.horizon}</button>
         `).join("")}
       </div>
@@ -476,7 +619,7 @@ function renderFuturePage() {
         </div>
         <div class="future-path" aria-label="Progress projection path">
           <div class="path-line"></div>
-          ${futureVision.map((item) => `
+          ${projections.map((item) => `
             <button class="path-node ${item.horizon === selected.horizon ? "is-selected" : ""}" data-horizon="${item.horizon}">
               <span>${item.horizon}</span>
               <strong>${item.projectedProgress}%</strong>
@@ -487,14 +630,17 @@ function renderFuturePage() {
       <article class="glass-card projection-summary">
         ${progressRing(selected.projectedProgress, "Projection", "large")}
         <h2>${selected.theme}</h2>
-        <p>At this pace, your goal becomes less abstract and more like a repeatable system.</p>
+        <p>At your current ${derived.productivityScore} score pace, this is the cleanest projected outcome.</p>
       </article>
       <div class="milestone-grid">
         ${selected.milestones.map((milestone, index) => `
           <article class="glass-card milestone-card">
             <span class="milestone-index">0${index + 1}</span>
-            <h3>${milestone}</h3>
-            <p>Designed as a concrete checkpoint that makes the future easier to present.</p>
+            <h3>${escapeHtml(milestone.title)}</h3>
+            <p>${milestone.done ? "Completed and already strengthening the projection." : "Not complete yet. Toggle it when this checkpoint becomes real."}</p>
+            <button class="check-button ${milestone.done ? "is-done" : ""}" data-toggle-milestone="${milestone.id}">
+              ${milestone.done ? "Completed" : "Mark complete"}
+            </button>
           </article>
         `).join("")}
       </div>
@@ -503,40 +649,42 @@ function renderFuturePage() {
 }
 
 function renderInsightsPage() {
+  const derived = getDerived();
+  const trend = getMomentumTrend();
+  const weekly = getWeeklyBars();
+  const categories = getCategoryBreakdown();
   return `
     <section class="page-hero">
       <div>
         <p class="eyebrow">Insights</p>
-        <h1>Premium analytics from local demo data.</h1>
-        <p>No APIs. No backend. Just convincing visual signal for a polished presentation.</p>
+        <h1>Analytics from your local momentum system.</h1>
+        <p>No APIs and no backend. These charts are derived from your tasks, habits, sessions, and milestones.</p>
       </div>
       <span class="status-pill">Last 8 weeks</span>
     </section>
     <section class="insights-grid">
-      ${metricCard("Momentum score", "84", "+18%", "span-3")}
-      ${metricCard("Completion rate", "76%", "+9%", "span-3")}
-      ${metricCard("Active streak", "12d", "Best month", "span-3")}
-      ${metricCard("Weekly focus", "14.5h", "+2.5h", "span-3")}
+      ${metricCard("Momentum score", `${derived.productivityScore}`, scoreDelta(derived.productivityScore), "span-3")}
+      ${metricCard("Completion rate", `${derived.progress}%`, `${derived.completedTasks}/${derived.totalTasks} tasks`, "span-3")}
+      ${metricCard("Active streak", `${derived.activeStreak}d`, `${derived.habitCompletion}% today`, "span-3")}
+      ${metricCard("Weekly focus", `${derived.focusHours.toFixed(1)}h`, `${state.app.sessions.reduce((sum, session) => sum + session.completed, 0)} sessions`, "span-3")}
       <article class="glass-card chart-card span-8">
         <div class="card-head"><div><p class="eyebrow">Trend</p><h2>Momentum score over time</h2></div></div>
         <div class="line-chart" aria-label="Momentum trend chart">
-          ${lineChart(momentumTrend)}
+          ${lineChart(trend)}
         </div>
       </article>
       <article class="glass-card chart-card span-4">
         <div class="card-head"><div><p class="eyebrow">Allocation</p><h2>Category focus</h2></div></div>
-        ${donutChart(categoryBreakdown)}
+        ${donutChart(categories)}
       </article>
       <article class="glass-card chart-card span-6">
         <div class="card-head"><div><p class="eyebrow">Sessions</p><h2>Completed this week</h2></div></div>
-        ${weeklyBars(weeklyOverview)}
+        ${weeklyBars(weekly)}
       </article>
       <article class="glass-card chart-card span-6">
-        <div class="card-head"><div><p class="eyebrow">Fixed insights</p><h2>Presentation-ready takeaways</h2></div></div>
+        <div class="card-head"><div><p class="eyebrow">Live insights</p><h2>Presentation-ready takeaways</h2></div></div>
         <div class="insight-list">
-          <p>Your strongest progress happens mid-week.</p>
-          <p>Consistency increased 18% over the last month.</p>
-          <p>Your current pace reaches the next milestone in 21 days.</p>
+          ${getInsightCopy(derived).map((copy) => `<p>${copy}</p>`).join("")}
         </div>
       </article>
     </section>
@@ -592,10 +740,26 @@ function miniStat(value, label) {
   return `<div class="mini-stat"><strong>${value}</strong><span>${label}</span></div>`;
 }
 
+function taskCard(task) {
+  return `
+    <article class="task-card ${task.done ? "is-done" : ""}">
+      <button class="task-check" data-toggle-task="${task.id}" aria-label="${task.done ? "Mark incomplete" : "Mark complete"}">
+        <span></span>
+      </button>
+      <div>
+        <h3>${escapeHtml(task.title)}</h3>
+        <p>${task.weight}% impact on the goal roadmap</p>
+      </div>
+      <strong>${task.done ? "Done" : "Open"}</strong>
+    </article>
+  `;
+}
+
 function habitRow(habit) {
   return `
-    <div class="habit-row" style="--accent:${habit.color}">
-      <div><strong>${habit.title}</strong><span>${habit.streak} day streak</span></div>
+    <div class="habit-row ${habit.doneToday ? "is-done" : ""}" style="--accent:${habit.color}">
+      <button class="habit-toggle" data-toggle-habit="${habit.id}" aria-label="Toggle ${escapeHtml(habit.title)}"></button>
+      <div><strong>${habit.title}</strong><span>${habit.streak} day streak - ${habit.doneToday ? "done today" : "due today"}</span></div>
       <div class="tiny-progress"><span style="width:${habit.completion}%"></span></div>
     </div>
   `;
@@ -677,6 +841,77 @@ function donutChart(items) {
   `;
 }
 
+function getWeeklyBars() {
+  const maxMinutes = Math.max(90, ...state.app.sessions.map((session) => session.minutes));
+  return state.app.sessions.map((session) => ({
+    day: session.day,
+    value: clamp(Math.round((session.minutes / maxMinutes) * 100), 8, 100),
+  }));
+}
+
+function getMomentumTrend() {
+  const derived = getDerived();
+  const start = clamp(derived.productivityScore - 24, 12, 86);
+  return momentumTrend.map((item, index) => ({
+    week: item.week,
+    score: clamp(Math.round(start + ((derived.productivityScore - start) * index) / 7 + (index % 2 === 0 ? 0 : 3)), 12, 100),
+  }));
+}
+
+function getFutureVision() {
+  const derived = getDerived();
+  return futureVision.map((item, index) => {
+    const horizonMilestones = state.app.milestones.filter((milestone) => milestone.horizon === item.horizon);
+    const completedBoost = horizonMilestones.filter((milestone) => milestone.done).length * 4;
+    const timeBoost = [10, 22, 34][index];
+    return {
+      ...item,
+      projectedProgress: clamp(derived.progress + timeBoost + completedBoost, derived.progress, 100),
+      milestones: horizonMilestones,
+    };
+  });
+}
+
+function getCategoryBreakdown() {
+  const completed = state.app.tasks.filter((task) => task.done).length;
+  const open = state.app.tasks.length - completed;
+  const habitsDone = state.app.habits.filter((habit) => habit.doneToday).length;
+  const total = Math.max(1, completed + open + habitsDone + 3);
+  return [
+    { label: "Completed", value: Math.round((completed / total) * 100), color: "#8B5CF6" },
+    { label: "Open tasks", value: Math.round((open / total) * 100), color: "#22D3EE" },
+    { label: "Habits", value: Math.round((habitsDone / total) * 100), color: "#34D399" },
+    { label: "Milestones", value: Math.max(8, 100 - Math.round(((completed + open + habitsDone) / total) * 100)), color: "#FBBF24" },
+  ];
+}
+
+function getInsightCopy(derived) {
+  return [
+    `${derived.nextTask ? `Your next highest-leverage move is "${escapeHtml(derived.nextTask.title)}".` : "Your roadmap tasks are complete. Keep focus sessions moving to maintain the score."}`,
+    `Today habits are ${derived.habitCompletion}% complete, which is worth almost a quarter of the momentum score.`,
+    `At the current pace, the next visible milestone is roughly ${Math.max(3, Math.round(daysUntil(state.goal.targetDate) * (1 - derived.progress / 100)))} days away.`,
+  ];
+}
+
+function scoreNarrative(score) {
+  if (score >= 85) return "Excellent pace. The system is carrying the goal now.";
+  if (score >= 70) return "Strong pace. One more task or focus session will lift the trend.";
+  if (score >= 45) return "Building pace. Complete the next task to make the path visible.";
+  return "Early pace. Log a session and complete one task to start the climb.";
+}
+
+function scoreDelta(score) {
+  const delta = score - getMomentumTrend()[0].score;
+  return `${delta >= 0 ? "+" : ""}${delta}%`;
+}
+
+function daysUntil(dateString) {
+  const today = new Date();
+  const target = new Date(`${dateString}T12:00:00`);
+  const diff = target.getTime() - today.getTime();
+  return Math.max(0, Math.ceil(diff / 86400000));
+}
+
 function formatDate(dateString) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${dateString}T12:00:00`));
 }
@@ -706,6 +941,7 @@ function wireNavigation() {
 function wireInteractions() {
   const form = document.getElementById("goal-form");
   if (form) wireGoalForm(form);
+  wireWorkspaceActions();
 
   document.querySelectorAll("[data-horizon]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -721,6 +957,97 @@ function wireInteractions() {
       const y = (event.clientY / window.innerHeight - 0.5) * 10;
       parallax.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     }, { passive: true });
+  }
+}
+
+function wireWorkspaceActions() {
+  document.querySelectorAll("[data-toggle-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.toggleTask;
+      const tasks = state.app.tasks.map((task) => task.id === id ? { ...task, done: !task.done } : task);
+      saveAppData({ ...state.app, tasks, goal: { ...state.goal, progress: getDerived({ ...state.app, tasks }).progress } });
+      showToast(tasks.find((task) => task.id === id)?.done ? "Task completed. Progress updated." : "Task reopened.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-toggle-habit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.toggleHabit;
+      const habits = state.app.habits.map((habit) => {
+        if (habit.id !== id) return habit;
+        const doneToday = !habit.doneToday;
+        return {
+          ...habit,
+          doneToday,
+          streak: Math.max(0, habit.streak + (doneToday ? 1 : -1)),
+          completion: clamp(habit.completion + (doneToday ? 3 : -3), 0, 100),
+        };
+      });
+      saveAppData({ ...state.app, habits });
+      showToast("Habit rhythm updated.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-toggle-milestone]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.toggleMilestone;
+      const milestones = state.app.milestones.map((milestone) => milestone.id === id ? { ...milestone, done: !milestone.done } : milestone);
+      saveAppData({ ...state.app, milestones });
+      showToast("Milestone updated.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-add-session]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const sessions = state.app.sessions.map((session, index) => (
+        index === state.app.sessions.length - 1
+          ? { ...session, minutes: session.minutes + 25, completed: session.completed + 1 }
+          : session
+      ));
+      saveAppData({ ...state.app, sessions });
+      showToast("25 minute focus session logged.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-complete-next]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextTask = state.app.tasks.find((task) => !task.done);
+      if (!nextTask) return;
+      const tasks = state.app.tasks.map((task) => task.id === nextTask.id ? { ...task, done: true } : task);
+      saveAppData({ ...state.app, tasks, goal: { ...state.goal, progress: getDerived({ ...state.app, tasks }).progress } });
+      showToast("Next roadmap task completed.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-reset-demo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_APP);
+      localStorage.removeItem(STORAGE_GOAL);
+      const fresh = loadAppData();
+      state.app = fresh;
+      state.goal = fresh.goal;
+      showToast("Demo workspace reset.");
+      render();
+    });
+  });
+
+  const quickTaskForm = document.getElementById("quick-task-form");
+  if (quickTaskForm) {
+    quickTaskForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = quickTaskForm.elements.task;
+      const title = input.value.trim();
+      if (!title) return;
+      const tasks = [...state.app.tasks, { id: cryptoId("task"), title, done: false, weight: 10 }];
+      saveAppData({ ...state.app, tasks, goal: { ...state.goal, progress: getDerived({ ...state.app, tasks }).progress } });
+      showToast("Roadmap task added.");
+      render();
+    });
   }
 }
 
