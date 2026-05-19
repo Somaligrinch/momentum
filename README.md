@@ -6,6 +6,12 @@ It is now interactive: completing roadmap tasks, toggling habits, logging focus 
 
 ## Run Locally
 
+Open this exact folder in your editor:
+
+```text
+/Users/ahmed/coding projects/momentum
+```
+
 From this folder, use either command:
 
 ```bash
