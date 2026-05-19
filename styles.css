@@ -504,6 +504,10 @@ h2 {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.explainer-grid .feature-card {
+  min-height: 260px;
+}
+
 .feature-card {
   padding: 24px;
 }
@@ -539,6 +543,78 @@ h2 {
   border-radius: 22px;
   padding: 20px;
   background: var(--surface-soft);
+}
+
+.workflow-band {
+  margin-top: 24px;
+}
+
+.guide-card {
+  padding: 24px;
+}
+
+.guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.guide-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  background: var(--surface-soft);
+}
+
+.guide-step > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: white;
+  background: linear-gradient(135deg, var(--primary), var(--cyan));
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.guide-step strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.guide-step p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.score-formula {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.score-formula span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 12px 14px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  font-weight: 750;
 }
 
 .step-card > span,
@@ -1272,7 +1348,9 @@ input {
 
   .feature-grid,
   .metric-band,
-  .milestone-grid {
+  .milestone-grid,
+  .guide-steps,
+  .score-formula {
     grid-template-columns: 1fr;
   }
 
@@ -1355,7 +1433,7 @@ input {
   .hero h1,
   .page-hero h1 {
     max-width: calc(100vw - 24px);
-    font-size: 32px;
+    font-size: 28px;
     line-height: 1.08;
     letter-spacing: -0.03em;
     overflow-wrap: break-word;
@@ -1391,6 +1469,10 @@ input {
   }
 
   .page-actions .button {
+    width: 100%;
+  }
+
+  .guide-actions .button {
     width: 100%;
   }
 

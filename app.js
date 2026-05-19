@@ -436,12 +436,12 @@ function renderLanding() {
   return `
     <section class="hero section-shell">
       <div class="hero-copy reveal">
-        <p class="eyebrow">Goal clarity for people building momentum</p>
-        <h1>Turn your next goal into a visible path forward.</h1>
-        <p class="hero-lede">Momentum helps you set a direction, track progress, and visualize the future you are building.</p>
+        <p class="eyebrow">A local-first goal dashboard</p>
+        <h1>Know what to work on today, and see why it matters.</h1>
+        <p class="hero-lede">Momentum turns each goal into a simple workspace: tasks to finish, habits to keep, focus sessions to log, milestones to hit, and progress you can actually see.</p>
         <div class="hero-actions">
-          <button class="button button-primary nav-link" data-route="/setup">Start building momentum</button>
-          <button class="button button-ghost nav-link" data-route="/dashboard">View demo dashboard</button>
+          <button class="button button-primary nav-link" data-route="/setup">Create or choose a goal</button>
+          <button class="button button-ghost nav-link" data-route="/dashboard">Open today’s dashboard</button>
         </div>
       </div>
       <div class="product-preview reveal" data-parallax>
@@ -450,24 +450,24 @@ function renderLanding() {
     </section>
     <section id="preview" class="section-shell product-section">
       <div class="section-heading">
-        <p class="eyebrow">Product preview</p>
-        <h2>A visual operating system for one important goal.</h2>
+        <p class="eyebrow">What Momentum is for</p>
+        <h2>A calm place to manage goals without a complicated productivity system.</h2>
       </div>
-      <div class="feature-grid">
-        ${featureCard("Visualize the path", "See your goal as a roadmap, not a vague intention.", "Path")}
-        ${featureCard("Build daily momentum", "Small sessions, streaks, and reviews make progress visible.", "Streak")}
-        ${featureCard("See future milestones", "Preview 30 days, 90 days, and one year of forward motion.", "Future")}
+      <div class="feature-grid explainer-grid">
+        ${featureCard("Plan the goal", "Create a goal workspace with a target date, priority, category, and roadmap tasks.", "Plan")}
+        ${featureCard("Move it daily", "Complete tasks, check habits, and log focus sessions from one dashboard.", "Do")}
+        ${featureCard("See the signal", "Progress, projections, and stats update from your local actions.", "See")}
       </div>
     </section>
     <section class="section-shell split-section">
       <div>
-        <p class="eyebrow">How it works</p>
-        <h2>Simple enough to demo in a minute. Polished enough to feel real.</h2>
+        <p class="eyebrow">How to use it</p>
+        <h2>Momentum is built around one daily loop.</h2>
       </div>
       <div class="steps">
-        ${step("01", "Set one goal", "Choose the target, priority, and category that matter right now.")}
-        ${step("02", "Track momentum", "Watch progress, streaks, and weekly focus become visible.")}
-        ${step("03", "See the future path", "Use projection cards to make consistency feel concrete.")}
+        ${step("01", "Pick a goal", "Use Goals to create or switch between local workspaces.")}
+        ${step("02", "Choose today’s move", "On Dashboard, complete the next roadmap task or log a focus session.")}
+        ${step("03", "Review the trend", "Use Vision and Stats to see what your daily actions are becoming.")}
       </div>
     </section>
     <section class="section-shell metric-band">
@@ -477,9 +477,9 @@ function renderLanding() {
       ${metricPill("14.5h", "Focus time")}
     </section>
     <section class="section-shell final-cta">
-      <p class="eyebrow">Ready for the presentation</p>
-      <h2>Your direction gets clearer when progress becomes visible.</h2>
-      <button class="button button-primary nav-link" data-route="/setup">Build my roadmap</button>
+      <p class="eyebrow">No account required</p>
+      <h2>Your data stays in this browser. Open the app, make progress, come back later.</h2>
+      <button class="button button-primary nav-link" data-route="/setup">Start with a goal</button>
     </section>
   `;
 }
@@ -575,6 +575,17 @@ function renderSetupPage() {
         <p class="muted">Target date: <strong id="preview-date">${formatDate(draft.targetDate)}</strong></p>
       </aside>
     </section>
+    <section class="workflow-band">
+      <article class="glass-card guide-card">
+        <p class="eyebrow">How goals work</p>
+        <h2>Each goal gets its own workspace.</h2>
+        <div class="guide-steps">
+          ${guideStep("1", "Create or switch", "Use this page to choose what you are focusing on.")}
+          ${guideStep("2", "Act from Dashboard", "Tasks, habits, and focus sessions all update that goal’s progress.")}
+          ${guideStep("3", "Review the outcome", "Vision and Stats turn your work into projections and patterns.")}
+        </div>
+      </article>
+    </section>
     <section class="goal-library">
       <div class="section-heading">
         <p class="eyebrow">Goal library</p>
@@ -602,6 +613,25 @@ function renderDashboardPage() {
       <button class="button button-ghost nav-link" data-route="/setup">Edit goal</button>
     </section>
     <section class="dashboard-grid">
+      <article class="glass-card guide-card span-12">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">Start here</p>
+            <h2>Momentum is your daily control room for this goal.</h2>
+          </div>
+          <span class="status-pill">Local workspace</span>
+        </div>
+        <div class="guide-steps">
+          ${guideStep("1", "Do the next task", derived.nextTask ? `Recommended: ${escapeHtml(derived.nextTask.title)}.` : "Your roadmap tasks are done. Add a new one when the goal evolves.")}
+          ${guideStep("2", "Keep the habit loop alive", `Today’s habits are ${derived.habitCompletion}% complete. Toggle them as you finish them.`)}
+          ${guideStep("3", "Log focus time", "Use a 25-minute session whenever you make real progress, even if no task is finished yet.")}
+        </div>
+        <div class="guide-actions">
+          <button class="button button-primary" data-complete-next ${derived.nextTask ? "" : "disabled"}>${derived.nextTask ? "Complete recommended task" : "No open task"}</button>
+          <button class="button button-ghost" data-add-session>Log focus session</button>
+          <button class="button button-ghost nav-link" data-route="/setup">Manage goals</button>
+        </div>
+      </article>
       <article class="glass-card progress-card span-5">
         <div class="card-head">
           <div><p class="eyebrow">Main progress</p><h2>${derived.progress}% complete</h2></div>
@@ -769,6 +799,20 @@ function renderInsightsPage() {
           ${getInsightCopy(derived).map((copy) => `<p>${copy}</p>`).join("")}
         </div>
       </article>
+      <article class="glass-card guide-card span-12">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">How to read this</p>
+            <h2>The score is not magic. It is a simple blend of what you actually do.</h2>
+          </div>
+        </div>
+        <div class="score-formula">
+          <span>Tasks: 46%</span>
+          <span>Habits: 24%</span>
+          <span>Focus: 18%</span>
+          <span>Milestones: 12%</span>
+        </div>
+      </article>
     </section>
   `;
 }
@@ -801,6 +845,18 @@ function step(number, title, copy) {
       <span>${number}</span>
       <div><h3>${title}</h3><p>${copy}</p></div>
     </article>
+  `;
+}
+
+function guideStep(number, title, copy) {
+  return `
+    <div class="guide-step">
+      <span>${number}</span>
+      <div>
+        <strong>${title}</strong>
+        <p>${copy}</p>
+      </div>
+    </div>
   `;
 }
 
