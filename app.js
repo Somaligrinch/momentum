@@ -1,5 +1,6 @@
 const STORAGE_GOAL = "momentum.goal";
 const STORAGE_APP = "momentum.workspace";
+const STORAGE_LIBRARY = "momentum.library";
 const STORAGE_THEME = "momentum.theme";
 
 const demoGoal = {
@@ -152,21 +153,24 @@ const categories = [
 
 const routeTitles = {
   "/": "Momentum",
-  "/setup": "Set goal",
+  "/setup": "Goals",
   "/dashboard": "Dashboard",
   "/future": "Future Vision",
   "/insights": "Insights",
 };
 
-const initialWorkspace = loadAppData();
+const initialLibrary = loadLibrary();
+const initialWorkspace = getActiveWorkspace(initialLibrary);
 
 let state = {
   route: getRoute(),
   goal: initialWorkspace.goal,
   app: initialWorkspace,
+  library: initialLibrary,
   theme: localStorage.getItem(STORAGE_THEME) || "dark",
   selectedHorizon: "30 days",
   setupDraft: null,
+  editingGoal: true,
   loading: true,
 };
 
@@ -212,6 +216,45 @@ function loadAppData() {
   });
 }
 
+function loadLibrary() {
+  try {
+    const saved = localStorage.getItem(STORAGE_LIBRARY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed.workspaces) && parsed.workspaces.length) {
+        const workspaces = parsed.workspaces.map(normalizeAppData);
+        const activeId = workspaces.some((workspace) => workspace.goal.id === parsed.activeId)
+          ? parsed.activeId
+          : workspaces[0].goal.id;
+        return { activeId, workspaces };
+      }
+    }
+  } catch {
+    // Fall back to the legacy single-workspace storage.
+  }
+
+  const workspace = loadAppData();
+  const library = { activeId: workspace.goal.id, workspaces: [workspace] };
+  localStorage.setItem(STORAGE_LIBRARY, JSON.stringify(library));
+  return library;
+}
+
+function getActiveWorkspace(library = state?.library) {
+  return library.workspaces.find((workspace) => workspace.goal.id === library.activeId) || library.workspaces[0];
+}
+
+function saveLibrary(library) {
+  state.library = {
+    activeId: library.activeId,
+    workspaces: library.workspaces.map(normalizeAppData),
+  };
+  state.app = getActiveWorkspace(state.library);
+  state.goal = state.app.goal;
+  localStorage.setItem(STORAGE_LIBRARY, JSON.stringify(state.library));
+  localStorage.setItem(STORAGE_APP, JSON.stringify(state.app));
+  localStorage.setItem(STORAGE_GOAL, JSON.stringify(state.goal));
+}
+
 function normalizeAppData(data) {
   const goal = { ...demoGoal, ...(data.goal || {}) };
   const tasks = Array.isArray(data.tasks) && data.tasks.length ? data.tasks : demoTasks;
@@ -222,19 +265,34 @@ function normalizeAppData(data) {
 }
 
 function saveAppData(nextApp) {
-  state.app = normalizeAppData({ ...nextApp, lastUpdated: new Date().toISOString() });
-  state.goal = state.app.goal;
-  localStorage.setItem(STORAGE_APP, JSON.stringify(state.app));
-  localStorage.setItem(STORAGE_GOAL, JSON.stringify(state.goal));
+  const normalized = normalizeAppData({ ...nextApp, lastUpdated: new Date().toISOString() });
+  const exists = state.library.workspaces.some((workspace) => workspace.goal.id === normalized.goal.id);
+  const workspaces = exists
+    ? state.library.workspaces.map((workspace) => workspace.goal.id === normalized.goal.id ? normalized : workspace)
+    : [...state.library.workspaces, normalized];
+  saveLibrary({ activeId: normalized.goal.id, workspaces });
 }
 
-function saveGoal(goal) {
+function saveGoal(goal, mode = "update") {
   const workspace = createWorkspaceForGoal(goal);
-  saveAppData(workspace);
+  if (mode === "create") {
+    saveAppData(workspace);
+    return;
+  }
+
+  saveAppData({
+    ...state.app,
+    goal: {
+      ...state.app.goal,
+      ...goal,
+      id: state.app.goal.id,
+      progress: getDerived(state.app).progress,
+    },
+  });
 }
 
 function createWorkspaceForGoal(goal) {
-  const cleanedGoal = { ...demoGoal, ...goal, progress: 0, createdAt: new Date().toISOString().slice(0, 10) };
+  const cleanedGoal = { ...demoGoal, ...goal, id: goal.id || cryptoId("goal"), progress: 0, createdAt: new Date().toISOString().slice(0, 10) };
   return {
     goal: cleanedGoal,
     tasks: [
@@ -347,7 +405,7 @@ function appShell(content) {
 function renderNav(isApp) {
   const links = [
     ["/", "Home"],
-    ["/setup", "Setup"],
+    ["/setup", "Goals"],
     ["/dashboard", "Dashboard"],
     ["/future", "Vision"],
     ["/insights", "Stats"],
@@ -368,7 +426,7 @@ function renderNav(isApp) {
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">
           <span>${state.theme === "dark" ? "Light" : "Dark"}</span>
         </button>
-        <button class="button button-small button-primary nav-link" data-route="/setup">Start</button>
+        <button class="button button-small button-primary nav-link" data-route="/setup">Goals</button>
       </div>
     </header>
   `;
@@ -455,17 +513,28 @@ function renderPreviewCard() {
 
 function renderSetupPage() {
   const draft = state.setupDraft || state.goal;
+  const modeLabel = state.editingGoal ? "Update active goal" : "Create new goal";
+  const previewProgress = state.editingGoal && draft.id === state.goal.id ? getDerived().progress : Number(draft.progress || 0);
   return `
     <section class="page-hero setup-hero">
       <div>
-        <p class="eyebrow">Goal setup</p>
-        <h1>Give your momentum a clear direction.</h1>
-        <p>Set one goal, then let the dashboard turn it into a visual roadmap for your presentation.</p>
+        <p class="eyebrow">Goals</p>
+        <h1>Manage the goals you are actually building.</h1>
+        <p>Create goals, switch between them, and keep each roadmap as its own local workspace.</p>
       </div>
-      <span class="status-pill">Local demo data only</span>
+      <div class="page-actions">
+        <button class="button button-ghost" data-new-goal>New goal</button>
+        <span class="status-pill">${state.library.workspaces.length} saved</span>
+      </div>
     </section>
     <section class="setup-grid">
       <form class="glass-card setup-form" id="goal-form">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">${state.editingGoal ? "Editing" : "Creating"}</p>
+            <h2>${modeLabel}</h2>
+          </div>
+        </div>
         <div class="form-row">
           <label for="goal-title">Goal title</label>
           <input id="goal-title" name="title" type="text" value="${escapeHtml(draft.title)}" placeholder="Launch my portfolio website" required />
@@ -493,7 +562,7 @@ function renderSetupPage() {
             `).join("")}
           </div>
         </div>
-        <button class="button button-primary form-submit" type="submit">Build my roadmap</button>
+        <button class="button button-primary form-submit" type="submit">${modeLabel}</button>
       </form>
       <aside class="glass-card goal-preview-card">
         <p class="eyebrow">Live preview</p>
@@ -502,9 +571,18 @@ function renderSetupPage() {
           <span id="preview-category">${draft.category}</span>
           <span id="preview-priority">${draft.priority} priority</span>
         </div>
-        ${progressRing(draft.progress, "Projected progress", "large")}
+        ${progressRing(previewProgress, "Projected progress", "large")}
         <p class="muted">Target date: <strong id="preview-date">${formatDate(draft.targetDate)}</strong></p>
       </aside>
+    </section>
+    <section class="goal-library">
+      <div class="section-heading">
+        <p class="eyebrow">Goal library</p>
+        <h2>Your saved workspaces</h2>
+      </div>
+      <div class="goal-grid">
+        ${state.library.workspaces.map((workspace) => goalLibraryCard(workspace)).join("")}
+      </div>
     </section>
   `;
 }
@@ -551,6 +629,10 @@ function renderDashboardPage() {
         <div class="streak-list">
           ${state.app.habits.map((habit) => habitRow(habit)).join("")}
         </div>
+        <form class="quick-task-form habit-form" id="quick-habit-form">
+          <input name="habit" type="text" placeholder="Add a habit" aria-label="New habit" />
+          <button class="button button-ghost" type="submit">Add</button>
+        </form>
       </article>
       <article class="glass-card action-card span-5">
         <div class="card-head">
@@ -736,6 +818,28 @@ function metricCard(label, value, trend, span) {
   `;
 }
 
+function goalLibraryCard(workspace) {
+  const derived = getDerived(workspace);
+  const isActive = workspace.goal.id === state.goal.id;
+  return `
+    <article class="glass-card goal-card ${isActive ? "is-active" : ""}">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">${workspace.goal.category}</p>
+          <h3>${escapeHtml(workspace.goal.title)}</h3>
+        </div>
+        <span class="status-pill">${derived.progress}%</span>
+      </div>
+      <p class="muted">Due ${formatDate(workspace.goal.targetDate)} · ${workspace.goal.priority} priority · ${derived.completedTasks}/${derived.totalTasks} tasks done</p>
+      <div class="goal-card-actions">
+        <button class="button button-primary" data-switch-workspace="${workspace.goal.id}">${isActive ? "Open dashboard" : "Switch to goal"}</button>
+        <button class="button button-ghost" data-edit-workspace="${workspace.goal.id}">Edit</button>
+        <button class="button button-text danger-text" data-delete-workspace="${workspace.goal.id}" ${state.library.workspaces.length === 1 ? "disabled" : ""}>Delete</button>
+      </div>
+    </article>
+  `;
+}
+
 function miniStat(value, label) {
   return `<div class="mini-stat"><strong>${value}</strong><span>${label}</span></div>`;
 }
@@ -750,7 +854,10 @@ function taskCard(task) {
         <h3>${escapeHtml(task.title)}</h3>
         <p>${task.weight}% impact on the goal roadmap</p>
       </div>
-      <strong>${task.done ? "Done" : "Open"}</strong>
+      <div class="task-actions">
+        <strong>${task.done ? "Done" : "Open"}</strong>
+        <button class="icon-danger" data-delete-task="${task.id}" aria-label="Delete task">×</button>
+      </div>
     </article>
   `;
 }
@@ -761,6 +868,7 @@ function habitRow(habit) {
       <button class="habit-toggle" data-toggle-habit="${habit.id}" aria-label="Toggle ${escapeHtml(habit.title)}"></button>
       <div><strong>${habit.title}</strong><span>${habit.streak} day streak - ${habit.doneToday ? "done today" : "due today"}</span></div>
       <div class="tiny-progress"><span style="width:${habit.completion}%"></span></div>
+      <button class="icon-danger" data-delete-habit="${habit.id}" aria-label="Delete habit">×</button>
     </div>
   `;
 }
@@ -912,6 +1020,12 @@ function daysUntil(dateString) {
   return Math.max(0, Math.ceil(diff / 86400000));
 }
 
+function defaultTargetDate() {
+  const target = new Date();
+  target.setDate(target.getDate() + 90);
+  return target.toISOString().slice(0, 10);
+}
+
 function formatDate(dateString) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${dateString}T12:00:00`));
 }
@@ -961,6 +1075,57 @@ function wireInteractions() {
 }
 
 function wireWorkspaceActions() {
+  document.querySelectorAll("[data-new-goal]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingGoal = false;
+      state.setupDraft = {
+        ...demoGoal,
+        id: cryptoId("goal"),
+        title: "",
+        targetDate: defaultTargetDate(),
+        priority: "Medium",
+        category: "Personal",
+        progress: 0,
+      };
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-switch-workspace]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const activeId = button.dataset.switchWorkspace;
+      saveLibrary({ ...state.library, activeId });
+      state.setupDraft = null;
+      state.editingGoal = true;
+      showToast("Goal workspace switched.");
+      navigate("/dashboard");
+    });
+  });
+
+  document.querySelectorAll("[data-edit-workspace]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const activeId = button.dataset.editWorkspace;
+      saveLibrary({ ...state.library, activeId });
+      state.setupDraft = { ...state.goal };
+      state.editingGoal = true;
+      showToast("Editing selected goal.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-delete-workspace]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.library.workspaces.length <= 1) return;
+      const id = button.dataset.deleteWorkspace;
+      const workspaces = state.library.workspaces.filter((workspace) => workspace.goal.id !== id);
+      const activeId = state.library.activeId === id ? workspaces[0].goal.id : state.library.activeId;
+      saveLibrary({ activeId, workspaces });
+      state.setupDraft = null;
+      showToast("Goal deleted.");
+      render();
+    });
+  });
+
   document.querySelectorAll("[data-toggle-task]").forEach((button) => {
     button.addEventListener("click", () => {
       const id = button.dataset.toggleTask;
@@ -986,6 +1151,26 @@ function wireWorkspaceActions() {
       });
       saveAppData({ ...state.app, habits });
       showToast("Habit rhythm updated.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-delete-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.deleteTask;
+      const tasks = state.app.tasks.filter((task) => task.id !== id);
+      saveAppData({ ...state.app, tasks });
+      showToast("Task deleted.");
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-delete-habit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.deleteHabit;
+      const habits = state.app.habits.filter((habit) => habit.id !== id);
+      saveAppData({ ...state.app, habits });
+      showToast("Habit deleted.");
       render();
     });
   });
@@ -1049,6 +1234,21 @@ function wireWorkspaceActions() {
       render();
     });
   }
+
+  const quickHabitForm = document.getElementById("quick-habit-form");
+  if (quickHabitForm) {
+    quickHabitForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = quickHabitForm.elements.habit;
+      const title = input.value.trim();
+      if (!title) return;
+      const color = ["#8B5CF6", "#22D3EE", "#34D399", "#FBBF24", "#FB7185"][state.app.habits.length % 5];
+      const habits = [...state.app.habits, { id: cryptoId("habit"), title, streak: 0, completion: 0, color, doneToday: false }];
+      saveAppData({ ...state.app, habits });
+      showToast("Habit added.");
+      render();
+    });
+  }
 }
 
 function wireGoalForm(form) {
@@ -1097,8 +1297,9 @@ function wireGoalForm(form) {
       ...draft,
       title: draft.title,
       progress: state.goal.progress || demoGoal.progress,
-    });
+    }, state.editingGoal ? "update" : "create");
     state.setupDraft = null;
+    state.editingGoal = true;
     showToast("Your goal is set.");
     navigate("/dashboard");
   });
