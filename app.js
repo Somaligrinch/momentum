@@ -669,12 +669,17 @@ function renderLanding() {
   return `
     <section class="hero section-shell">
       <div class="hero-copy reveal">
-        <p class="eyebrow">A local-first goal dashboard</p>
-        <h1>Know what to work on today, and see why it matters.</h1>
-        <p class="hero-lede">Momentum turns each goal into a simple workspace: tasks to finish, habits to keep, focus sessions to log, milestones to hit, and progress you can actually see.</p>
+        <p class="eyebrow">Describe a goal. Get the path.</p>
+        <h1>Describe a goal. Momentum shows how.</h1>
+        <p class="hero-lede">Start with a simple goal description. Momentum turns it into a focused plan with next actions, habits, milestones, and progress signals you can present clearly.</p>
         <div class="hero-actions">
-          <button class="button button-primary nav-link" data-route="/setup">Create or choose a goal</button>
-          <button class="button button-ghost nav-link" data-route="/dashboard">Open today’s dashboard</button>
+          <button class="button button-primary nav-link" data-route="/setup">Describe a goal</button>
+          <button class="button button-ghost nav-link" data-route="/dashboard">Show the plan</button>
+        </div>
+        <div class="hero-signal" aria-label="Product signals">
+          <span><strong>1. Describe</strong>What you want to do</span>
+          <span><strong>2. Plan</strong>Tasks, habits, milestones</span>
+          <span><strong>3. Act</strong>One clear next move</span>
         </div>
       </div>
       <div class="product-preview reveal" data-parallax>
@@ -683,24 +688,24 @@ function renderLanding() {
     </section>
     <section id="preview" class="section-shell product-section">
       <div class="section-heading">
-        <p class="eyebrow">What Momentum is for</p>
-        <h2>A calm place to manage goals without a complicated productivity system.</h2>
+        <p class="eyebrow">The product idea</p>
+        <h2>Momentum is a goal translator: it turns an intention into an action system.</h2>
       </div>
       <div class="feature-grid explainer-grid">
-        ${featureCard("Plan the goal", "Create a goal workspace with a target date, priority, category, and roadmap tasks.", "Plan")}
-        ${featureCard("Move it daily", "Complete tasks, check habits, and log focus sessions from one dashboard.", "Do")}
-        ${featureCard("See the signal", "Progress, projections, and stats update from your local actions.", "See")}
+        ${featureCard("Describe the outcome", "Write the goal in plain language, choose a target date, and set the priority.", "1")}
+        ${featureCard("Get the method", "Momentum creates the structure around it: roadmap tasks, habits, sessions, and milestones.", "2")}
+        ${featureCard("Follow the next move", "The dashboard keeps the main action visible so the user always knows what to do next.", "3")}
       </div>
     </section>
     <section class="section-shell split-section">
       <div>
-        <p class="eyebrow">How to use it</p>
-        <h2>Momentum is built around one daily loop.</h2>
+        <p class="eyebrow">Easy presentation line</p>
+        <h2>The app answers the question: “How do I actually achieve this?”</h2>
       </div>
       <div class="steps">
-        ${step("01", "Pick a goal", "Use Goals to create or switch between local workspaces.")}
-        ${step("02", "Choose today’s move", "On Dashboard, complete the next roadmap task or log a focus session.")}
-        ${step("03", "Review the trend", "Use Vision and Stats to see what your daily actions are becoming.")}
+        ${step("01", "User says what they want", "A goal like “launch my portfolio” becomes the starting brief.")}
+        ${step("02", "Momentum builds the path", "It breaks the goal into practical actions and supporting routines.")}
+        ${step("03", "The dashboard directs action", "Every screen points back to progress, the next task, and the future outcome.")}
       </div>
     </section>
     <section class="section-shell metric-band">
@@ -711,13 +716,13 @@ function renderLanding() {
     </section>
     <section class="section-shell demo-strip">
       <p class="eyebrow">Built for different lives</p>
-      <h2>Try examples for ${demoStats.toLowerCase()} goals, then copy the one that fits you.</h2>
+      <h2>Use demo goals for ${demoStats.toLowerCase()} scenarios to show the idea without typing live.</h2>
       <button class="button button-ghost nav-link" data-route="/setup">Browse demo goals</button>
     </section>
     <section class="section-shell final-cta">
       <p class="eyebrow">No account required</p>
-      <h2>Your data stays in this browser. Open the app, make progress, come back later.</h2>
-      <button class="button button-primary nav-link" data-route="/setup">Start with a goal</button>
+      <h2>For the demo, the story is simple: describe the goal, get the plan, follow the next action.</h2>
+      <button class="button button-primary nav-link" data-route="/setup">Create the plan</button>
     </section>
   `;
 }
@@ -742,9 +747,14 @@ function renderPreviewCard() {
         </div>
       </div>
       <div class="mini-horizons">
-        <span>30d</span><span>90d</span><span>1y</span>
+        <span>Actions</span><span>Habits</span><span>Milestones</span>
       </div>
       ${weeklyBars(getWeeklyBars())}
+      <div class="preview-focus-row">
+        <i aria-hidden="true"></i>
+        <div><strong>Recommended next move</strong><span>${derived.nextTask ? escapeHtml(derived.nextTask.title) : "Log the next focus session"}</span></div>
+        <span>${daysUntil(state.goal.targetDate)}d left</span>
+      </div>
     </article>
   `;
 }
@@ -757,8 +767,8 @@ function renderSetupPage() {
     <section class="page-hero setup-hero">
       <div>
         <p class="eyebrow">Goals</p>
-        <h1>Manage the goals you are actually building.</h1>
-        <p>Create goals, switch between them, and keep each roadmap as its own local workspace.</p>
+        <h1>Tell Momentum what you want to achieve.</h1>
+        <p>This is the input moment: describe the outcome, set the deadline, and Momentum turns it into the workspace that guides the user.</p>
       </div>
       <div class="page-actions">
         <button class="button button-ghost" data-new-goal>New goal</button>
@@ -769,7 +779,7 @@ function renderSetupPage() {
     <section class="mode-banner ${state.activeMode === "demo" ? "is-demo" : ""}">
       <div>
         <p class="eyebrow">${state.activeMode === "demo" ? "Demo mode" : "Personal mode"}</p>
-        <h2>${state.activeMode === "demo" ? "You are previewing sample data. Your real goals are separate." : "You are editing your personal local workspace."}</h2>
+        <h2>${state.activeMode === "demo" ? "You are previewing a sample goal-to-plan transformation." : "You are building a personal goal plan from a simple description."}</h2>
       </div>
       ${state.activeMode === "demo" ? `<button class="button button-primary" data-copy-active-demo>Copy this demo to my goals</button>` : `<button class="button button-ghost" data-preview-demo="${demoTemplates[0].id}">Try a demo safely</button>`}
     </section>
@@ -777,12 +787,12 @@ function renderSetupPage() {
       <form class="glass-card setup-form" id="goal-form">
         <div class="card-head">
           <div>
-            <p class="eyebrow">${state.editingGoal ? "Editing" : "Creating"}</p>
-            <h2>${modeLabel}</h2>
+            <p class="eyebrow">${state.editingGoal ? "Goal brief" : "New goal brief"}</p>
+            <h2>${state.editingGoal ? "Refine the description" : "Describe what you want"}</h2>
           </div>
         </div>
         <div class="form-row">
-          <label for="goal-title">Goal title</label>
+          <label for="goal-title">What do you want to achieve?</label>
           <input id="goal-title" name="title" type="text" value="${escapeHtml(draft.title)}" placeholder="Launch my portfolio website" required />
         </div>
         <div class="form-row">
@@ -808,10 +818,10 @@ function renderSetupPage() {
             `).join("")}
           </div>
         </div>
-        <button class="button button-primary form-submit" type="submit">${modeLabel}</button>
+        <button class="button button-primary form-submit" type="submit">${state.editingGoal ? "Update the plan" : "Turn this into a plan"}</button>
       </form>
       <aside class="glass-card goal-preview-card">
-        <p class="eyebrow">Live preview</p>
+        <p class="eyebrow">Plan preview</p>
         <h2 id="preview-title">${escapeHtml(draft.title)}</h2>
         <div class="preview-meta">
           <span id="preview-category">${draft.category}</span>
@@ -824,11 +834,11 @@ function renderSetupPage() {
     <section class="workflow-band">
       <article class="glass-card guide-card">
         <p class="eyebrow">How goals work</p>
-        <h2>Each goal gets its own workspace.</h2>
+        <h2>The goal becomes a workspace with a built-in method.</h2>
         <div class="guide-steps">
-          ${guideStep("1", "Create or switch", "Use this page to choose what you are focusing on.")}
-          ${guideStep("2", "Act from Dashboard", "Tasks, habits, and focus sessions all update that goal’s progress.")}
-          ${guideStep("3", "Review the outcome", "Vision and Stats turn your work into projections and patterns.")}
+          ${guideStep("1", "Goal brief", "The user describes what they want to accomplish.")}
+          ${guideStep("2", "Action system", "Momentum organizes the work into tasks, habits, sessions, and milestones.")}
+          ${guideStep("3", "Guided progress", "Dashboard, Vision, and Stats explain what to do and why it matters.")}
         </div>
       </article>
     </section>
@@ -844,7 +854,7 @@ function renderSetupPage() {
     <section class="goal-library">
       <div class="section-heading">
         <p class="eyebrow">Demo gallery</p>
-        <h2>Preview Momentum for school, health, career, creative work, and money goals.</h2>
+        <h2>Each demo shows the same promise: a goal description becomes an achievement plan.</h2>
       </div>
       <div class="goal-grid">
         ${demoTemplates.map((template) => demoGoalCard(template)).join("")}
@@ -863,7 +873,7 @@ function renderDashboardPage() {
       <div>
         <p class="eyebrow">${state.activeMode === "demo" ? "Dashboard · Demo mode" : "Dashboard · Personal workspace"}</p>
         <h1>${escapeHtml(goal.title)}</h1>
-        <p>${goal.category} goal due ${formatDate(goal.targetDate)}. Complete tasks, log focus, and check habits to move the numbers.${state.activeMode === "demo" ? " Demo changes are temporary, so you can click around safely." : ""}</p>
+        <p>${goal.category} goal due ${formatDate(goal.targetDate)}. This screen explains how to achieve it: finish the next roadmap task, keep the habits alive, and log focused work.${state.activeMode === "demo" ? " Demo changes are temporary, so you can click around safely." : ""}</p>
       </div>
       <div class="page-actions">
         ${state.activeMode === "demo" ? `<button class="button button-primary" data-copy-active-demo>Use this as a template</button>` : ""}
@@ -874,18 +884,18 @@ function renderDashboardPage() {
       <article class="glass-card guide-card span-12">
         <div class="card-head">
           <div>
-            <p class="eyebrow">Start here</p>
-            <h2>Momentum is your daily control room for this goal.</h2>
+            <p class="eyebrow">How to achieve it</p>
+            <h2>Momentum turns the goal into today’s next action.</h2>
           </div>
           <span class="status-pill">${state.activeMode === "demo" ? "Safe demo" : "Saved locally"}</span>
         </div>
         <div class="guide-steps">
-          ${guideStep("1", "Do the next task", derived.nextTask ? `Recommended: ${escapeHtml(derived.nextTask.title)}.` : "Your roadmap tasks are done. Add a new one when the goal evolves.")}
-          ${guideStep("2", "Keep the habit loop alive", `Today’s habits are ${derived.habitCompletion}% complete. Toggle them as you finish them.`)}
-          ${guideStep("3", "Log focus time", "Use a 25-minute session whenever you make real progress, even if no task is finished yet.")}
+          ${guideStep("1", "Next action", derived.nextTask ? `Do this first: ${escapeHtml(derived.nextTask.title)}.` : "Your roadmap tasks are done. Add a new one when the goal evolves.")}
+          ${guideStep("2", "Support routine", `Keep the habits that make the goal repeatable. Today is ${derived.habitCompletion}% complete.`)}
+          ${guideStep("3", "Proof of effort", "Log focus sessions so progress moves even before the final outcome is finished.")}
         </div>
         <div class="guide-actions">
-          <button class="button button-primary" data-complete-next ${derived.nextTask ? "" : "disabled"}>${derived.nextTask ? "Complete recommended task" : "No open task"}</button>
+          <button class="button button-primary" data-complete-next ${derived.nextTask ? "" : "disabled"}>${derived.nextTask ? "Complete next action" : "No open task"}</button>
           <button class="button button-ghost" data-add-session>Log focus session</button>
           <button class="button button-ghost nav-link" data-route="/setup">Manage goals</button>
         </div>
