@@ -632,6 +632,41 @@ h2 {
   padding: 32px 0 96px;
 }
 
+.demo-strip,
+.mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 26px;
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.12), transparent 52%),
+    var(--surface-soft);
+}
+
+.demo-strip {
+  margin-bottom: 48px;
+}
+
+.demo-strip h2,
+.mode-banner h2 {
+  max-width: 820px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.mode-banner {
+  margin-bottom: 20px;
+}
+
+.mode-banner.is-demo {
+  border-color: rgba(251, 191, 36, 0.28);
+  background:
+    linear-gradient(135deg, rgba(251, 191, 36, 0.14), transparent 55%),
+    var(--surface-soft);
+}
+
 .final-cta {
   text-align: center;
 }
@@ -951,6 +986,29 @@ h2 {
 .goal-card.is-active {
   border-color: rgba(34, 211, 238, 0.5);
   background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), var(--surface));
+}
+
+.demo-goal-card {
+  background:
+    linear-gradient(145deg, rgba(251, 191, 36, 0.08), transparent 42%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 94%, white 4%), color-mix(in srgb, var(--surface) 84%, transparent));
+}
+
+.demo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.demo-chips span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  font-size: 12px;
+  font-weight: 750;
 }
 
 .goal-card-actions {
@@ -1446,6 +1504,8 @@ input {
   }
 
   .page-hero,
+  .demo-strip,
+  .mode-banner,
   .preview-body,
   .progress-layout,
   .momentum-notes,
@@ -1469,6 +1529,11 @@ input {
   }
 
   .page-actions .button {
+    width: 100%;
+  }
+
+  .demo-strip .button,
+  .mode-banner .button {
     width: 100%;
   }
 

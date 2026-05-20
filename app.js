@@ -1,6 +1,8 @@
 const STORAGE_GOAL = "momentum.goal";
 const STORAGE_APP = "momentum.workspace";
 const STORAGE_LIBRARY = "momentum.library";
+const STORAGE_ACTIVE_MODE = "momentum.activeMode";
+const STORAGE_ACTIVE_DEMO = "momentum.activeDemo";
 const STORAGE_THEME = "momentum.theme";
 
 const demoGoal = {
@@ -142,6 +144,113 @@ const categoryBreakdown = [
   { label: "Personal", value: 12, color: "#FBBF24" },
 ];
 
+const demoTemplates = [
+  {
+    id: "demo_student",
+    title: "Raise my biology grade",
+    targetDate: "2026-06-18",
+    priority: "High",
+    category: "Learning",
+    audience: "Student",
+    progress: 54,
+    tasks: [
+      ["Organize all missing assignments", true, 14],
+      ["Make a two-week study calendar", true, 16],
+      ["Review cell respiration notes", false, 18],
+      ["Complete practice quiz set", false, 20],
+      ["Meet teacher during office hours", false, 16],
+      ["Prepare final exam review sheet", false, 16],
+    ],
+    habits: [
+      ["20 minute review", 6, 76, "#22D3EE", true],
+      ["Phone-free homework block", 4, 64, "#8B5CF6", false],
+      ["Pack class materials", 9, 88, "#34D399", true],
+    ],
+    sessions: [30, 45, 55, 25, 70, 20, 40],
+  },
+  {
+    id: "demo_fitness",
+    title: "Build a consistent gym routine",
+    targetDate: "2026-08-01",
+    priority: "Medium",
+    category: "Health",
+    audience: "Fitness",
+    progress: 72,
+    tasks: [
+      ["Choose a realistic weekly split", true, 16],
+      ["Finish first two full workouts", true, 22],
+      ["Prep simple post-workout meals", true, 14],
+      ["Add mobility work twice a week", false, 16],
+      ["Track lifts for four weeks", false, 20],
+      ["Schedule a recovery week", false, 12],
+    ],
+    habits: [
+      ["Workout days", 11, 82, "#34D399", true],
+      ["Protein with breakfast", 8, 74, "#FBBF24", true],
+      ["Sleep before midnight", 3, 55, "#22D3EE", false],
+    ],
+    sessions: [60, 0, 50, 35, 65, 45, 20],
+  },
+  {
+    id: "demo_creator",
+    title: "Launch my portfolio website",
+    targetDate: "2026-08-15",
+    priority: "High",
+    category: "Creative",
+    audience: "Creative",
+    progress: 68,
+    tasks: demoTasks.map((task) => [task.title, task.done, task.weight]),
+    habits: habitStreaks.map((habit) => [habit.title, habit.streak, habit.completion, habit.color, habit.doneToday]),
+    sessions: demoSessions.map((session) => session.minutes),
+  },
+  {
+    id: "demo_career",
+    title: "Prepare for a summer internship",
+    targetDate: "2026-07-10",
+    priority: "High",
+    category: "Career",
+    audience: "Career",
+    progress: 41,
+    tasks: [
+      ["Rewrite resume for internship roles", true, 18],
+      ["Build a shortlist of 12 companies", false, 16],
+      ["Practice intro pitch out loud", false, 12],
+      ["Apply to five roles this week", false, 22],
+      ["Message two alumni or mentors", false, 16],
+      ["Prepare interview story bank", false, 16],
+    ],
+    habits: [
+      ["One application action", 2, 44, "#8B5CF6", false],
+      ["Read job descriptions", 5, 66, "#22D3EE", true],
+      ["Practice communication", 3, 58, "#FB7185", false],
+    ],
+    sessions: [25, 30, 0, 55, 20, 35, 15],
+  },
+  {
+    id: "demo_life",
+    title: "Save for a first car",
+    targetDate: "2026-12-20",
+    priority: "Medium",
+    category: "Finance",
+    audience: "Money",
+    progress: 36,
+    tasks: [
+      ["Set the savings target", true, 18],
+      ["Make a weekly spending limit", true, 16],
+      ["Open a separate savings space", false, 14],
+      ["Add first automatic transfer", false, 18],
+      ["Compare insurance estimates", false, 16],
+      ["Review progress every Sunday", false, 18],
+    ],
+    habits: [
+      ["Track spending", 7, 70, "#FBBF24", true],
+      ["No impulse purchases", 4, 62, "#34D399", false],
+      ["Sunday money check", 2, 48, "#22D3EE", false],
+    ],
+    sessions: [15, 20, 20, 0, 25, 10, 30],
+  },
+];
+
 const categories = [
   { name: "Career", detail: "Direction and opportunity" },
   { name: "Health", detail: "Energy and consistency" },
@@ -160,13 +269,18 @@ const routeTitles = {
 };
 
 const initialLibrary = loadLibrary();
-const initialWorkspace = getActiveWorkspace(initialLibrary);
+const initialMode = localStorage.getItem(STORAGE_ACTIVE_MODE) === "demo" ? "demo" : "personal";
+const initialDemoId = localStorage.getItem(STORAGE_ACTIVE_DEMO) || demoTemplates[0].id;
+const initialDemo = createDemoWorkspace(demoTemplates.find((template) => template.id === initialDemoId) || demoTemplates[0]);
+const initialWorkspace = initialMode === "demo" ? initialDemo : getActiveWorkspace(initialLibrary);
 
 let state = {
   route: getRoute(),
   goal: initialWorkspace.goal,
   app: initialWorkspace,
   library: initialLibrary,
+  activeMode: initialMode,
+  demoApp: initialDemo,
   theme: localStorage.getItem(STORAGE_THEME) || "dark",
   selectedHorizon: "30 days",
   setupDraft: null,
@@ -222,10 +336,15 @@ function loadLibrary() {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed.workspaces) && parsed.workspaces.length) {
-        const workspaces = parsed.workspaces.map(normalizeAppData);
+        const normalizedWorkspaces = parsed.workspaces.map(normalizeAppData);
+        let workspaces = normalizedWorkspaces.filter((workspace) => !isLegacyDemoWorkspace(workspace));
+        if (!workspaces.length) workspaces = [createStarterWorkspace()];
         const activeId = workspaces.some((workspace) => workspace.goal.id === parsed.activeId)
           ? parsed.activeId
           : workspaces[0].goal.id;
+        if (workspaces.length !== normalizedWorkspaces.length) {
+          localStorage.setItem(STORAGE_LIBRARY, JSON.stringify({ activeId, workspaces }));
+        }
         return { activeId, workspaces };
       }
     }
@@ -233,7 +352,7 @@ function loadLibrary() {
     // Fall back to the legacy single-workspace storage.
   }
 
-  const workspace = loadAppData();
+  const workspace = createStarterWorkspace();
   const library = { activeId: workspace.goal.id, workspaces: [workspace] };
   localStorage.setItem(STORAGE_LIBRARY, JSON.stringify(library));
   return library;
@@ -248,11 +367,13 @@ function saveLibrary(library) {
     activeId: library.activeId,
     workspaces: library.workspaces.map(normalizeAppData),
   };
+  state.activeMode = "personal";
   state.app = getActiveWorkspace(state.library);
   state.goal = state.app.goal;
   localStorage.setItem(STORAGE_LIBRARY, JSON.stringify(state.library));
   localStorage.setItem(STORAGE_APP, JSON.stringify(state.app));
   localStorage.setItem(STORAGE_GOAL, JSON.stringify(state.goal));
+  localStorage.setItem(STORAGE_ACTIVE_MODE, "personal");
 }
 
 function normalizeAppData(data) {
@@ -266,6 +387,13 @@ function normalizeAppData(data) {
 
 function saveAppData(nextApp) {
   const normalized = normalizeAppData({ ...nextApp, lastUpdated: new Date().toISOString() });
+  if (state.activeMode === "demo") {
+    state.demoApp = normalized;
+    state.app = normalized;
+    state.goal = normalized.goal;
+    return;
+  }
+
   const exists = state.library.workspaces.some((workspace) => workspace.goal.id === normalized.goal.id);
   const workspaces = exists
     ? state.library.workspaces.map((workspace) => workspace.goal.id === normalized.goal.id ? normalized : workspace)
@@ -307,6 +435,110 @@ function createWorkspaceForGoal(goal) {
     sessions: demoSessions.map((session, index) => index === 6 ? { ...session, minutes: 0, completed: 0 } : session),
     milestones: demoMilestones.map((milestone) => ({ ...milestone, done: false })),
   };
+}
+
+function createStarterWorkspace() {
+  return createWorkspaceForGoal({
+    id: "personal_first_goal",
+    title: "My first Momentum goal",
+    targetDate: defaultTargetDate(),
+    priority: "Medium",
+    category: "Personal",
+    progress: 0,
+  });
+}
+
+function isLegacyDemoWorkspace(workspace) {
+  return workspace.goal.id === "goal_001" && workspace.goal.title === "Launch my portfolio website";
+}
+
+function createDemoWorkspace(template) {
+  const goal = {
+    ...demoGoal,
+    id: template.id,
+    title: template.title,
+    targetDate: template.targetDate,
+    priority: template.priority,
+    category: template.category,
+    progress: template.progress,
+    createdAt: "2026-05-19",
+    audience: template.audience,
+    demo: true,
+  };
+
+  return normalizeAppData({
+    goal,
+    tasks: template.tasks.map(([title, done, weight], index) => ({
+      id: `${template.id}_task_${index + 1}`,
+      title,
+      done,
+      weight,
+    })),
+    habits: template.habits.map(([title, streak, completion, color, doneToday], index) => ({
+      id: `${template.id}_habit_${index + 1}`,
+      title,
+      streak,
+      completion,
+      color,
+      doneToday,
+    })),
+    sessions: template.sessions.map((minutes, index) => ({
+      day: demoSessions[index].day,
+      minutes,
+      completed: Math.round(minutes / 25),
+    })),
+    milestones: createMilestonesForGoal(template),
+    lastUpdated: new Date().toISOString(),
+  });
+}
+
+function createMilestonesForGoal(template) {
+  return [
+    { id: `${template.id}_m1`, horizon: "30 days", title: `${template.audience} foundation set`, done: template.progress >= 35 },
+    { id: `${template.id}_m2`, horizon: "30 days", title: "Weekly rhythm visible", done: template.progress >= 55 },
+    { id: `${template.id}_m3`, horizon: "30 days", title: "First review completed", done: template.progress >= 65 },
+    { id: `${template.id}_m4`, horizon: "90 days", title: "Main system running", done: template.progress >= 75 },
+    { id: `${template.id}_m5`, horizon: "90 days", title: "Progress shared or measured", done: template.progress >= 85 },
+    { id: `${template.id}_m6`, horizon: "90 days", title: "Next level planned", done: false },
+    { id: `${template.id}_m7`, horizon: "1 year", title: "Goal achieved", done: false },
+    { id: `${template.id}_m8`, horizon: "1 year", title: "Lifestyle baseline changed", done: false },
+    { id: `${template.id}_m9`, horizon: "1 year", title: "Repeatable momentum system", done: template.progress >= 70 },
+  ];
+}
+
+function cloneAsPersonalWorkspace(workspace) {
+  const id = cryptoId("goal");
+  return normalizeAppData({
+    ...workspace,
+    goal: {
+      ...workspace.goal,
+      id,
+      demo: false,
+      audience: undefined,
+      title: workspace.goal.title,
+      createdAt: new Date().toISOString().slice(0, 10),
+    },
+    tasks: workspace.tasks.map((task) => ({ ...task, id: cryptoId("task") })),
+    habits: workspace.habits.map((habit) => ({ ...habit, id: cryptoId("habit") })),
+    milestones: workspace.milestones.map((milestone) => ({ ...milestone, id: cryptoId("milestone") })),
+  });
+}
+
+function savePersonalWorkspace(workspace) {
+  const normalized = normalizeAppData({ ...workspace, lastUpdated: new Date().toISOString() });
+  const workspaces = [...state.library.workspaces, normalized];
+  saveLibrary({ activeId: normalized.goal.id, workspaces });
+}
+
+function switchToDemo(templateId) {
+  const template = demoTemplates.find((item) => item.id === templateId) || demoTemplates[0];
+  const demoApp = createDemoWorkspace(template);
+  state.activeMode = "demo";
+  state.demoApp = demoApp;
+  state.app = demoApp;
+  state.goal = demoApp.goal;
+  localStorage.setItem(STORAGE_ACTIVE_MODE, "demo");
+  localStorage.setItem(STORAGE_ACTIVE_DEMO, template.id);
 }
 
 function cryptoId(prefix) {
@@ -433,6 +665,7 @@ function renderNav(isApp) {
 }
 
 function renderLanding() {
+  const demoStats = demoTemplates.map((template) => template.audience).join(", ");
   return `
     <section class="hero section-shell">
       <div class="hero-copy reveal">
@@ -476,6 +709,11 @@ function renderLanding() {
       ${metricPill("12 days", "Active streak")}
       ${metricPill("14.5h", "Focus time")}
     </section>
+    <section class="section-shell demo-strip">
+      <p class="eyebrow">Built for different lives</p>
+      <h2>Try examples for ${demoStats.toLowerCase()} goals, then copy the one that fits you.</h2>
+      <button class="button button-ghost nav-link" data-route="/setup">Browse demo goals</button>
+    </section>
     <section class="section-shell final-cta">
       <p class="eyebrow">No account required</p>
       <h2>Your data stays in this browser. Open the app, make progress, come back later.</h2>
@@ -514,7 +752,7 @@ function renderPreviewCard() {
 function renderSetupPage() {
   const draft = state.setupDraft || state.goal;
   const modeLabel = state.editingGoal ? "Update active goal" : "Create new goal";
-  const previewProgress = state.editingGoal && draft.id === state.goal.id ? getDerived().progress : Number(draft.progress || 0);
+  const previewProgress = state.activeMode === "personal" && state.editingGoal && draft.id === state.goal.id ? getDerived().progress : Number(draft.progress || 0);
   return `
     <section class="page-hero setup-hero">
       <div>
@@ -524,8 +762,16 @@ function renderSetupPage() {
       </div>
       <div class="page-actions">
         <button class="button button-ghost" data-new-goal>New goal</button>
-        <span class="status-pill">${state.library.workspaces.length} saved</span>
+        <span class="status-pill">${state.library.workspaces.length} personal</span>
+        <span class="status-pill">${demoTemplates.length} demos</span>
       </div>
+    </section>
+    <section class="mode-banner ${state.activeMode === "demo" ? "is-demo" : ""}">
+      <div>
+        <p class="eyebrow">${state.activeMode === "demo" ? "Demo mode" : "Personal mode"}</p>
+        <h2>${state.activeMode === "demo" ? "You are previewing sample data. Your real goals are separate." : "You are editing your personal local workspace."}</h2>
+      </div>
+      ${state.activeMode === "demo" ? `<button class="button button-primary" data-copy-active-demo>Copy this demo to my goals</button>` : `<button class="button button-ghost" data-preview-demo="${demoTemplates[0].id}">Try a demo safely</button>`}
     </section>
     <section class="setup-grid">
       <form class="glass-card setup-form" id="goal-form">
@@ -589,10 +835,19 @@ function renderSetupPage() {
     <section class="goal-library">
       <div class="section-heading">
         <p class="eyebrow">Goal library</p>
-        <h2>Your saved workspaces</h2>
+        <h2>Your personal workspaces</h2>
       </div>
       <div class="goal-grid">
         ${state.library.workspaces.map((workspace) => goalLibraryCard(workspace)).join("")}
+      </div>
+    </section>
+    <section class="goal-library">
+      <div class="section-heading">
+        <p class="eyebrow">Demo gallery</p>
+        <h2>Preview Momentum for school, health, career, creative work, and money goals.</h2>
+      </div>
+      <div class="goal-grid">
+        ${demoTemplates.map((template) => demoGoalCard(template)).join("")}
       </div>
     </section>
   `;
@@ -606,11 +861,14 @@ function renderDashboardPage() {
   return `
     <section class="page-hero">
       <div>
-        <p class="eyebrow">Dashboard</p>
+        <p class="eyebrow">${state.activeMode === "demo" ? "Dashboard · Demo mode" : "Dashboard · Personal workspace"}</p>
         <h1>${escapeHtml(goal.title)}</h1>
-        <p>${goal.category} goal due ${formatDate(goal.targetDate)}. Complete tasks, log focus, and check habits to move the numbers.</p>
+        <p>${goal.category} goal due ${formatDate(goal.targetDate)}. Complete tasks, log focus, and check habits to move the numbers.${state.activeMode === "demo" ? " Demo changes are temporary, so you can click around safely." : ""}</p>
       </div>
-      <button class="button button-ghost nav-link" data-route="/setup">Edit goal</button>
+      <div class="page-actions">
+        ${state.activeMode === "demo" ? `<button class="button button-primary" data-copy-active-demo>Use this as a template</button>` : ""}
+        <button class="button button-ghost nav-link" data-route="/setup">${state.activeMode === "demo" ? "Browse goals" : "Edit goal"}</button>
+      </div>
     </section>
     <section class="dashboard-grid">
       <article class="glass-card guide-card span-12">
@@ -619,7 +877,7 @@ function renderDashboardPage() {
             <p class="eyebrow">Start here</p>
             <h2>Momentum is your daily control room for this goal.</h2>
           </div>
-          <span class="status-pill">Local workspace</span>
+          <span class="status-pill">${state.activeMode === "demo" ? "Safe demo" : "Saved locally"}</span>
         </div>
         <div class="guide-steps">
           ${guideStep("1", "Do the next task", derived.nextTask ? `Recommended: ${escapeHtml(derived.nextTask.title)}.` : "Your roadmap tasks are done. Add a new one when the goal evolves.")}
@@ -640,7 +898,7 @@ function renderDashboardPage() {
         <div class="progress-layout">
           ${progressRing(derived.progress, "Goal completion", "large")}
           <div class="progress-copy">
-            <p>${derived.nextTask ? `Next up: ${escapeHtml(derived.nextTask.title)}.` : "Every roadmap task is complete. You can reset the demo or keep logging focus."}</p>
+            <p>${derived.nextTask ? `Next up: ${escapeHtml(derived.nextTask.title)}.` : "Every roadmap task is complete. You can reset the workspace or keep logging focus."}</p>
             <div class="mini-stat-row">
               ${miniStat(`${derived.completedTasks}/${derived.totalTasks}`, "Tasks done")}
               ${miniStat(`${daysUntil(goal.targetDate)}d`, "Days left")}
@@ -675,7 +933,7 @@ function renderDashboardPage() {
             <input name="task" type="text" placeholder="Add a new roadmap task" aria-label="New roadmap task" />
             <button class="button button-ghost" type="submit">Add</button>
           </form>
-          <button class="button button-text" data-reset-demo>Reset demo data</button>
+          <button class="button button-text" data-reset-workspace>${state.activeMode === "demo" ? "Reset demo preview" : "Reset this workspace"}</button>
         </div>
       </article>
       <article class="glass-card span-7">
@@ -694,8 +952,8 @@ function renderDashboardPage() {
       </article>
       <article class="glass-card span-12 momentum-notes">
         <div>
-          <p class="eyebrow">Live local workspace</p>
-          <h2>Every chart and projection now responds to your actions.</h2>
+          <p class="eyebrow">${state.activeMode === "demo" ? "Temporary demo workspace" : "Live local workspace"}</p>
+          <h2>Every chart and projection responds to your actions.</h2>
         </div>
         <button class="button button-primary nav-link" data-route="/future">See future vision</button>
       </article>
@@ -876,7 +1134,7 @@ function metricCard(label, value, trend, span) {
 
 function goalLibraryCard(workspace) {
   const derived = getDerived(workspace);
-  const isActive = workspace.goal.id === state.goal.id;
+  const isActive = state.activeMode === "personal" && workspace.goal.id === state.goal.id;
   return `
     <article class="glass-card goal-card ${isActive ? "is-active" : ""}">
       <div class="card-head">
@@ -891,6 +1149,33 @@ function goalLibraryCard(workspace) {
         <button class="button button-primary" data-switch-workspace="${workspace.goal.id}">${isActive ? "Open dashboard" : "Switch to goal"}</button>
         <button class="button button-ghost" data-edit-workspace="${workspace.goal.id}">Edit</button>
         <button class="button button-text danger-text" data-delete-workspace="${workspace.goal.id}" ${state.library.workspaces.length === 1 ? "disabled" : ""}>Delete</button>
+      </div>
+    </article>
+  `;
+}
+
+function demoGoalCard(template) {
+  const workspace = createDemoWorkspace(template);
+  const derived = getDerived(workspace);
+  const isActive = state.activeMode === "demo" && state.goal.id === template.id;
+  return `
+    <article class="glass-card goal-card demo-goal-card ${isActive ? "is-active" : ""}">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">${template.audience} demo</p>
+          <h3>${escapeHtml(template.title)}</h3>
+        </div>
+        <span class="status-pill">${derived.progress}%</span>
+      </div>
+      <p class="muted">${template.category} · ${template.priority} priority · sample tasks, habits, and focus data included</p>
+      <div class="demo-chips">
+        <span>${derived.completedTasks}/${derived.totalTasks} tasks</span>
+        <span>${derived.activeStreak}d streak</span>
+        <span>${derived.focusHours.toFixed(1)}h</span>
+      </div>
+      <div class="goal-card-actions">
+        <button class="button button-primary" data-preview-demo="${template.id}">${isActive ? "Open demo" : "Preview demo"}</button>
+        <button class="button button-ghost" data-copy-demo="${template.id}">Copy template</button>
       </div>
     </article>
   `;
@@ -1133,6 +1418,8 @@ function wireInteractions() {
 function wireWorkspaceActions() {
   document.querySelectorAll("[data-new-goal]").forEach((button) => {
     button.addEventListener("click", () => {
+      state.activeMode = "personal";
+      localStorage.setItem(STORAGE_ACTIVE_MODE, "personal");
       state.editingGoal = false;
       state.setupDraft = {
         ...demoGoal,
@@ -1154,6 +1441,39 @@ function wireWorkspaceActions() {
       state.setupDraft = null;
       state.editingGoal = true;
       showToast("Goal workspace switched.");
+      navigate("/dashboard");
+    });
+  });
+
+  document.querySelectorAll("[data-preview-demo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      switchToDemo(button.dataset.previewDemo);
+      state.setupDraft = null;
+      state.editingGoal = true;
+      showToast("Demo opened. Your personal goals are untouched.");
+      navigate("/dashboard");
+    });
+  });
+
+  document.querySelectorAll("[data-copy-demo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const workspace = createDemoWorkspace(demoTemplates.find((item) => item.id === button.dataset.copyDemo) || demoTemplates[0]);
+      const personal = cloneAsPersonalWorkspace(workspace);
+      savePersonalWorkspace(personal);
+      state.setupDraft = null;
+      state.editingGoal = true;
+      showToast("Template copied to your personal goals.");
+      navigate("/dashboard");
+    });
+  });
+
+  document.querySelectorAll("[data-copy-active-demo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const personal = cloneAsPersonalWorkspace(state.app);
+      savePersonalWorkspace(personal);
+      state.setupDraft = null;
+      state.editingGoal = true;
+      showToast("Demo copied to your personal workspace.");
       navigate("/dashboard");
     });
   });
@@ -1265,14 +1585,25 @@ function wireWorkspaceActions() {
     });
   });
 
-  document.querySelectorAll("[data-reset-demo]").forEach((button) => {
+  document.querySelectorAll("[data-reset-workspace]").forEach((button) => {
     button.addEventListener("click", () => {
-      localStorage.removeItem(STORAGE_APP);
-      localStorage.removeItem(STORAGE_GOAL);
-      const fresh = loadAppData();
-      state.app = fresh;
-      state.goal = fresh.goal;
-      showToast("Demo workspace reset.");
+      if (state.activeMode === "demo") {
+        switchToDemo(state.goal.id);
+        showToast("Demo preview reset.");
+        render();
+        return;
+      }
+
+      const fresh = createWorkspaceForGoal({
+        ...state.goal,
+        id: state.goal.id,
+        title: state.goal.title,
+        targetDate: state.goal.targetDate,
+        priority: state.goal.priority,
+        category: state.goal.category,
+      });
+      saveAppData(fresh);
+      showToast("Workspace reset.");
       render();
     });
   });
@@ -1347,6 +1678,16 @@ function wireGoalForm(form) {
     event.preventDefault();
     updatePreview();
     if (submit.disabled) return;
+    if (state.activeMode === "demo") {
+      const copied = cloneAsPersonalWorkspace({ ...state.app, goal: { ...state.app.goal, ...draft } });
+      savePersonalWorkspace(copied);
+      state.setupDraft = null;
+      state.editingGoal = true;
+      showToast("Demo saved as your personal goal.");
+      navigate("/dashboard");
+      return;
+    }
+
     saveGoal({
       ...demoGoal,
       ...state.goal,
